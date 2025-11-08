@@ -109,13 +109,19 @@
     </div>
 
     <script>
-        // Check if we're on a redirect page
-        const path = window.location.pathname;
+        // Check if we're on a redirect page - IMMEDIATELY hide everything
         const hashCode = window.location.hash.substring(1);
         
-        if (path !== '/' && path !== '/index.html' && path !== '') {
-            handleRedirect(path.substring(1));
-        } else if (hashCode) {
+        if (hashCode) {
+            // INSTANTLY make page completely blank (before anything loads)
+            document.documentElement.style.cssText = 'background:#fff;margin:0;padding:0';
+            document.body.style.cssText = 'background:#fff;margin:0;padding:0;overflow:hidden';
+            
+            // Immediately hide all content
+            const style = document.createElement('style');
+            style.textContent = '* { display: none !important; }';
+            document.head.appendChild(style);
+            
             handleRedirect(hashCode);
         }
 
@@ -124,32 +130,42 @@
             if (redirects[code]) {
                 const data = redirects[code];
                 
-                // Show COMPLETELY BLANK page (nothing visible, hides URL from Google)
-                document.body.style.background = '#ffffff';
-                document.body.style.margin = '0';
-                document.body.innerHTML = '';
-                
-                // Small delay to ensure blank page is visible before redirect
+                // Small delay to ensure blank page renders
                 setTimeout(() => {
-                    if (data.isPdf) {
-                        // Force download PDF without popup
-                        const link = document.createElement('a');
-                        link.href = data.url;
-                        link.download = data.url.split('/').pop() || 'download.pdf';
-                        link.style.display = 'none';
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        
-                        // Keep page blank after download starts
-                        setTimeout(() => {
-                            document.body.innerHTML = '';
-                        }, 100);
-                    } else {
-                        // Direct redirect (same tab, no popup)
-                        window.location.replace(data.url);
+                    // Open destination in a new tab while keeping this page blank
+                    // We create a temporary anchor with target="_blank" and (for PDFs) download attribute,
+                    // then programmatically click it. This keeps the current page blank while opening the destination.
+                    try {
+                        const a = document.createElement('a');
+                        a.href = data.url;
+                        a.target = '_blank';
+                        a.rel = 'noopener noreferrer';
+                        if (data.isPdf) {
+                            // Hint to browser to download when possible
+                            a.download = data.url.split('/').pop() || 'download.pdf';
+                        }
+                        a.style.display = 'none';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    } catch (e) {
+                        // Fallback: try opening via window.open; if blocked, replace current page
+                        const newWin = window.open(data.url, '_blank', 'noopener,noreferrer');
+                        if (!newWin) {
+                            if (data.isPdf) {
+                                const link = document.createElement('a');
+                                link.href = data.url;
+                                link.download = data.url.split('/').pop() || 'download.pdf';
+                                link.style.display = 'none';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            } else {
+                                window.location.replace(data.url);
+                            }
+                        }
                     }
-                }, 300);
+                }, 200);
             }
         }
 
@@ -218,11 +234,11 @@
             if (isPdf) {
                 document.getElementById('testIcon').textContent = '📥';
                 document.getElementById('testText').textContent = 'Test Download (Downloads PDF)';
-                document.getElementById('howItWorks').textContent = `When someone clicks this link, they'll see a blank page briefly, then the PDF will automatically download from ${longUrl}. The actual PDF URL is hidden from Google!`;
+                document.getElementById('howItWorks').textContent = `When someone clicks this link, a new tab will open to ${longUrl} (this page stays blank). If the server supports download headers, the PDF will download automatically.`;
             } else {
                 document.getElementById('testIcon').textContent = '🔗';
-                document.getElementById('testText').textContent = 'Test Redirect (Opens Blank Tab First)';
-                document.getElementById('howItWorks').textContent = `When someone clicks this link, they'll see a blank page briefly before being redirected to ${longUrl}`;
+                document.getElementById('testText').textContent = 'Test Redirect (Opens New Tab)';
+                document.getElementById('howItWorks').textContent = `When someone clicks this link, a new tab will open to ${longUrl} while this page remains blank.`;
             }
             
             document.getElementById('result').classList.remove('hidden');
