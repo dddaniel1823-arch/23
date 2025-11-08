@@ -21,7 +21,7 @@
                 </div>
                 <div>
                     <h1 class="text-3xl font-bold text-gray-900">URL Redirect Tool</h1>
-                    <p class="text-gray-600">Create short abc.com links with new tab redirect + auto-close</p>
+                    <p class="text-gray-600">Create short abc.com links with blank-tab shield + auto-close</p>
                 </div>
             </div>
 
@@ -87,7 +87,7 @@
                         class="w-full bg-white border border-green-600 text-green-700 py-2 rounded-lg font-medium hover:bg-green-50 transition"
                     >
                         <span id="testIcon">📥</span>
-                        <span id="testText">Test Redirect (opens in new tab, current closes)</span>
+                        <span id="testText">Test Download (new tab, auto-closes)</span>
                     </button>
 
                     <div class="text-sm text-green-800 bg-green-100 p-3 rounded">
@@ -104,7 +104,7 @@
         </div>
 
         <div class="mt-6 text-center text-sm text-gray-600">
-            <p>✨ All URLs open in new tab; current tab closes. PDFs auto-download, show confirmation, then try to close the tab</p>
+            <p>✨ Regular URLs redirect; PDFs auto-download, show confirmation, then close current tab</p>
         </div>
     </div>
 
@@ -127,15 +127,11 @@
             const data = redirects[code];
             if (!data) return;
 
-            // Minimal blank UI (keeps crawlers blind; keeps our domain in the bar)
             document.body.style.background = '#f3f4f6';
             document.body.innerHTML = '';
 
             if (data.isPdf) {
-                // Trigger the download without navigating away (address bar remains on abc.com)
                 startDownload(data.url);
-
-                // Quick confirmation message
                 document.body.innerHTML = `
                   <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;
                               height:100vh;font-size:18px;color:#059669;text-align:center;padding:20px;font-family:system-ui;">
@@ -144,42 +140,17 @@
                     <div style="font-size:14px;color:#6b7280;">This tab will close automatically…</div>
                   </div>`;
 
-                // Try to auto-close (works when opened via window.open, e.g., Test button or your own launcher)
                 if (autoCloseFlag || window.opener) {
                     attemptCloseTab();
                 } else {
-                    // Even if no opener/flag, we still try (browsers may block it if user opened via address bar)
                     setTimeout(attemptCloseTab, 1200);
                 }
             } else {
-                // Non-PDF: open in new tab and close current tab
-                openInNewTabAndCloseCurrent(data.url);
+                window.location.replace(data.url);
             }
         }
 
-        // Open URL in new tab and close current tab
-        function openInNewTabAndCloseCurrent(url) {
-            // Open the target URL in a new tab
-            const newTab = window.open(url, '_blank', 'noopener,noreferrer');
-            
-            // Try to close the current tab
-            if (newTab) {
-                // Focus on the new tab
-                newTab.focus();
-                
-                // Try to close the current tab
-                attemptCloseTab();
-            } else {
-                // If popup blocked, fallback to regular redirect
-                window.location.href = url;
-            }
-        }
-
-        // Robust download trigger:
-        // 1) Try <a download> click (fast path; keeps bar unchanged)
-        // 2) Fallback to hidden iframe (commonly starts a file download too)
         function startDownload(url) {
-            // Attempt A: <a download> (works widely; filename may be ignored cross-origin)
             try {
                 const a = document.createElement('a');
                 a.href = url;
@@ -189,11 +160,8 @@
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
-            } catch (e) {
-                // ignore and fallback
-            }
+            } catch (e) {}
 
-            // Attempt B: hidden iframe (many browsers start the file download)
             setTimeout(() => {
                 try {
                     const iframe = document.createElement('iframe');
@@ -202,26 +170,20 @@
                     iframe.style.border = '0';
                     iframe.src = url;
                     document.body.appendChild(iframe);
-                    // Remove later to keep DOM clean
                     setTimeout(() => { try { document.body.removeChild(iframe); } catch (_) {} }, 5000);
-                } catch (e) {
-                    // ignore
-                }
+                } catch (e) {}
             }, 120);
         }
 
         function attemptCloseTab() {
             const tryClose = () => {
-                // Some browsers require replacing current context first
                 window.open('', '_self');
                 window.close();
             };
-            // Try a few times to maximize success
             setTimeout(tryClose, 200);
             setTimeout(tryClose, 800);
             setTimeout(tryClose, 1400);
             setTimeout(() => {
-                // If still open, adjust message politely
                 document.title = '✓ Downloaded — you can close this tab';
                 if (document.body) {
                     document.body.innerHTML = `
@@ -294,9 +256,9 @@
                     `Opens a blank tab on ${currentDomain}, silently starts the download from your URL, shows a quick tick, then tries to close the tab automatically.`;
             } else {
                 document.getElementById('testIcon').textContent = '🔗';
-                document.getElementById('testText').textContent = 'Test Redirect (opens in new tab, current closes)';
+                document.getElementById('testText').textContent = 'Test Redirect (opens blank tab shield first)';
                 document.getElementById('howItWorks').textContent =
-                    `Opens your URL in a new tab and closes the current tab.`;
+                    `Shows a blank shield page briefly, then redirects to your URL.`;
             }
 
             document.getElementById('result').classList.remove('hidden');
@@ -312,6 +274,7 @@
             setTimeout(() => { copyIcon.textContent = '📋'; }, 1500);
         }
 
+        // === UPDATED FUNCTION ===
         function testRedirect() {
             const shortUrl = document.getElementById('shortUrl').value;
             if (!shortUrl) return;
@@ -322,12 +285,21 @@
             if (!data) return;
 
             if (data.isPdf) {
-                // Open the short link in a new tab with an auto-close hint; the new tab will start download and try to close
                 const urlWithFlag = `${shortUrl}${shortUrl.includes('?') ? '&' : '?'}ac=1`;
                 window.open(urlWithFlag, '_blank', 'noopener,noreferrer');
+                setTimeout(() => {
+                    window.open('', '_self');
+                    window.close();
+                }, 700);
             } else {
-                // Open in new tab and close current tab
-                openInNewTabAndCloseCurrent(data.url);
+                const blankWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');
+                setTimeout(() => {
+                    if (blankWindow) blankWindow.location.href = data.url;
+                }, 100);
+                setTimeout(() => {
+                    window.open('', '_self');
+                    window.close();
+                }, 700);
             }
         }
 
@@ -351,8 +323,7 @@
                     <div class="flex-1 min-w-0">
                         <p class="font-mono text-sm text-indigo-600 truncate">${currentDomain}/#${code}</p>
                         <p class="text-xs text-gray-600 truncate">${data.url}</p>
-                        ${data.isPdf ? '<p class="text-xs text-green-600 font-medium mt-1">PDF auto-download + auto-close</p>' : 
-                          '<p class="text-xs text-blue-600 font-medium mt-1">Opens in new tab, current closes</p>'}
+                        ${data.isPdf ? '<p class="text-xs text-green-600 font-medium mt-1">PDF auto-download + auto-close</p>' : ''}
                     </div>
                 `;
                 listEl.appendChild(div);
