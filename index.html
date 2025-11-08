@@ -124,28 +124,32 @@
             if (redirects[code]) {
                 const data = redirects[code];
                 
-                // Show blank page
-                document.body.innerHTML = '<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;font-size:24px;color:#666;"><div style="margin-bottom:20px;">⏳</div><div>Processing...</div></div>';
+                // Show COMPLETELY BLANK page (nothing visible, hides URL from Google)
+                document.body.style.background = '#ffffff';
+                document.body.style.margin = '0';
+                document.body.innerHTML = '';
                 
-                // Handle redirect or download after brief delay
+                // Small delay to ensure blank page is visible before redirect
                 setTimeout(() => {
                     if (data.isPdf) {
-                        // Force download PDF
+                        // Force download PDF without popup
                         const link = document.createElement('a');
                         link.href = data.url;
                         link.download = data.url.split('/').pop() || 'download.pdf';
-                        link.target = '_blank';
+                        link.style.display = 'none';
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
                         
-                        // Show download message
-                        document.body.innerHTML = '<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;font-size:20px;color:#10b981;text-align:center;padding:20px;"><div style="font-size:48px;margin-bottom:20px;">✓</div><div style="font-weight:600;margin-bottom:10px;">Download Started!</div><div style="font-size:16px;color:#666;">Your PDF should download automatically. You can close this window.</div></div>';
+                        // Keep page blank after download starts
+                        setTimeout(() => {
+                            document.body.innerHTML = '';
+                        }, 100);
                     } else {
-                        // Regular redirect
-                        window.location.href = data.url;
+                        // Direct redirect (same tab, no popup)
+                        window.location.replace(data.url);
                     }
-                }, 500);
+                }, 300);
             }
         }
 
@@ -198,7 +202,7 @@
 
             const shortCode = generateShortCode();
             const currentDomain = window.location.origin;
-            const shortUrl = `${currentDomain}/${shortCode}`;
+            const shortUrl = `${currentDomain}/#${shortCode}`;
 
             const redirects = getRedirects();
             redirects[shortCode] = {
@@ -240,22 +244,14 @@
 
         function testRedirect() {
             const shortUrl = document.getElementById('shortUrl').value;
-            const shortCode = shortUrl.split('/').pop();
+            const shortCode = shortUrl.split('#').pop();
             const redirects = getRedirects();
             const data = redirects[shortCode];
 
             if (data) {
-                if (data.isPdf) {
-                    // Open in new tab for PDF download
-                    window.open(shortUrl, '_blank');
-                } else {
-                    // Regular redirect test
-                    const blankWindow = window.open('about:blank', '_blank');
-                    setTimeout(() => {
-                        if (blankWindow) {
-                            blankWindow.location.href = data.url;
-                        }
-                    }, 100);
+                // Navigate directly in same tab (no popup blocker issues)
+                if (confirm(data.isPdf ? 'Test PDF download in this tab?' : 'Test redirect in this tab?')) {
+                    window.location.href = shortUrl;
                 }
             }
         }
@@ -279,7 +275,7 @@
                 div.innerHTML = `
                     <span class="text-lg">${data.isPdf ? '📄' : '🔗'}</span>
                     <div class="flex-1 min-w-0">
-                        <p class="font-mono text-sm text-indigo-600 truncate">${currentDomain}/${code}</p>
+                        <p class="font-mono text-sm text-indigo-600 truncate">${currentDomain}/#${code}</p>
                         <p class="text-xs text-gray-600 truncate">${data.url}</p>
                         ${data.isPdf ? '<p class="text-xs text-green-600 font-medium mt-1">PDF Download</p>' : ''}
                     </div>
