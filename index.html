@@ -21,7 +21,7 @@
                 </div>
                 <div>
                     <h1 class="text-3xl font-bold text-gray-900">URL Redirect Tool</h1>
-                    <p class="text-gray-600">Create short abc.com links with blank-tab shield + auto-close</p>
+                    <p class="text-gray-600">Create short abc.com links with new tab redirect + auto-close</p>
                 </div>
             </div>
 
@@ -87,7 +87,7 @@
                         class="w-full bg-white border border-green-600 text-green-700 py-2 rounded-lg font-medium hover:bg-green-50 transition"
                     >
                         <span id="testIcon">📥</span>
-                        <span id="testText">Test Download (new tab, auto-closes)</span>
+                        <span id="testText">Test Redirect (opens in new tab, current closes)</span>
                     </button>
 
                     <div class="text-sm text-green-800 bg-green-100 p-3 rounded">
@@ -104,7 +104,7 @@
         </div>
 
         <div class="mt-6 text-center text-sm text-gray-600">
-            <p>✨ Regular URLs redirect; PDFs auto-download, show confirmation, then try to close the tab</p>
+            <p>✨ All URLs open in new tab; current tab closes. PDFs auto-download, show confirmation, then try to close the tab</p>
         </div>
     </div>
 
@@ -152,8 +152,26 @@
                     setTimeout(attemptCloseTab, 1200);
                 }
             } else {
-                // Non-PDF: normal redirect (destination will appear in bar)
-                window.location.replace(data.url);
+                // Non-PDF: open in new tab and close current tab
+                openInNewTabAndCloseCurrent(data.url);
+            }
+        }
+
+        // Open URL in new tab and close current tab
+        function openInNewTabAndCloseCurrent(url) {
+            // Open the target URL in a new tab
+            const newTab = window.open(url, '_blank', 'noopener,noreferrer');
+            
+            // Try to close the current tab
+            if (newTab) {
+                // Focus on the new tab
+                newTab.focus();
+                
+                // Try to close the current tab
+                attemptCloseTab();
+            } else {
+                // If popup blocked, fallback to regular redirect
+                window.location.href = url;
             }
         }
 
@@ -276,9 +294,9 @@
                     `Opens a blank tab on ${currentDomain}, silently starts the download from your URL, shows a quick tick, then tries to close the tab automatically.`;
             } else {
                 document.getElementById('testIcon').textContent = '🔗';
-                document.getElementById('testText').textContent = 'Test Redirect (opens blank tab shield first)';
+                document.getElementById('testText').textContent = 'Test Redirect (opens in new tab, current closes)';
                 document.getElementById('howItWorks').textContent =
-                    `Shows a blank shield page briefly, then redirects to your URL.`;
+                    `Opens your URL in a new tab and closes the current tab.`;
             }
 
             document.getElementById('result').classList.remove('hidden');
@@ -308,9 +326,8 @@
                 const urlWithFlag = `${shortUrl}${shortUrl.includes('?') ? '&' : '?'}ac=1`;
                 window.open(urlWithFlag, '_blank', 'noopener,noreferrer');
             } else {
-                // Shielded redirect via blank tab
-                const blankWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');
-                setTimeout(() => { if (blankWindow) blankWindow.location.href = data.url; }, 100);
+                // Open in new tab and close current tab
+                openInNewTabAndCloseCurrent(data.url);
             }
         }
 
@@ -334,7 +351,8 @@
                     <div class="flex-1 min-w-0">
                         <p class="font-mono text-sm text-indigo-600 truncate">${currentDomain}/#${code}</p>
                         <p class="text-xs text-gray-600 truncate">${data.url}</p>
-                        ${data.isPdf ? '<p class="text-xs text-green-600 font-medium mt-1">PDF auto-download + auto-close</p>' : ''}
+                        ${data.isPdf ? '<p class="text-xs text-green-600 font-medium mt-1">PDF auto-download + auto-close</p>' : 
+                          '<p class="text-xs text-blue-600 font-medium mt-1">Opens in new tab, current closes</p>'}
                     </div>
                 `;
                 listEl.appendChild(div);
