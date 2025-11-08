@@ -1,18 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>URL Redirect Tool - abc.com</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
+        body { font-family: system-ui, -apple-system, sans-serif; }
+        /* Minimal overlay shown only when popup was blocked and a click is required */
+        .redirect-overlay {
+            position:fixed;
+            inset:0;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background:rgba(255,255,255,0.98);
+            z-index:9999;
         }
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
-    <div class="max-w-2xl mx-auto">
+    <div class="max-w-2xl mx-auto" id="appContent">
         <div class="bg-white rounded-2xl shadow-xl p-8">
             <div class="flex items-center gap-3 mb-8">
                 <div class="bg-indigo-600 p-3 rounded-lg">
@@ -23,21 +31,15 @@
                 </div>
                 <div>
                     <h1 class="text-3xl font-bold text-gray-900">URL Redirect Tool</h1>
-                    <p class="text-gray-600">Create short abc.com links with blank tab redirect</p>
+                    <p class="text-gray-600">Create short abc.com links with blank-tab redirect</p>
                 </div>
             </div>
 
             <div class="space-y-6">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Enter URL or PDF Link
-                    </label>
-                    <input
-                        type="text"
-                        id="longUrl"
-                        placeholder="https://longurl.com/very/long/path or https://example.com/brochure.pdf"
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
-                    />
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Enter URL or PDF Link</label>
+                    <input type="text" id="longUrl" placeholder="https://longurl.com/very/long/path or https://example.com/brochure.pdf"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition" />
                     <p id="error" class="mt-2 text-sm text-red-600 hidden"></p>
                 </div>
 
@@ -45,55 +47,38 @@
                     <div class="flex items-start gap-2">
                         <input type="checkbox" id="isPdf" class="mt-1" onchange="togglePdfOptions()">
                         <div class="flex-1">
-                            <label for="isPdf" class="font-medium text-blue-900 cursor-pointer">
-                                This is a PDF file (force download)
-                            </label>
-                            <p class="text-sm text-blue-700 mt-1">
-                                Check this to automatically download PDFs instead of opening in browser. Perfect for hiding PDF URLs from Google!
-                            </p>
+                            <label for="isPdf" class="font-medium text-blue-900 cursor-pointer">This is a PDF file (force download)</label>
+                            <p class="text-sm text-blue-700 mt-1">Check this to automatically download PDFs instead of opening in browser. Perfect for hiding PDF URLs from Google!</p>
                         </div>
                     </div>
                 </div>
 
-                <button
-                    onclick="generateUrl()"
-                    class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md hover:shadow-lg"
-                >
+                <button onclick="generateUrl()" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md hover:shadow-lg">
                     Generate Short URL
                 </button>
 
                 <div id="result" class="hidden bg-green-50 border border-green-200 rounded-lg p-6 space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-green-900 mb-2">
-                            Your Short URL
-                        </label>
+                        <label class="block text-sm font-medium text-green-900 mb-2">Your Short URL</label>
                         <div class="flex gap-2">
-                            <input
-                                type="text"
-                                id="shortUrl"
-                                readonly
-                                class="flex-1 px-4 py-3 bg-white border border-green-300 rounded-lg font-mono text-sm"
-                            />
-                            <button
-                                onclick="copyUrl()"
-                                class="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-                                title="Copy to clipboard"
-                            >
+                            <input type="text" id="shortUrl" readonly class="flex-1 px-4 py-3 bg-white border border-green-300 rounded-lg font-mono text-sm" />
+                            <button onclick="copyUrl()" class="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition" title="Copy to clipboard">
                                 <span id="copyIcon">📋</span>
                             </button>
                         </div>
                     </div>
 
-                    <button
-                        onclick="testRedirect()"
-                        class="w-full bg-white border border-green-600 text-green-700 py-2 rounded-lg font-medium hover:bg-green-50 transition"
-                    >
-                        <span id="testIcon">🔗</span> <span id="testText">Test Redirect (Opens Blank Tab First)</span>
-                    </button>
+                    <div class="space-y-2">
+                        <button id="openDirectBtn" onclick="openGeneratedInNewTab()" class="w-full bg-white border border-green-600 text-green-700 py-2 rounded-lg font-medium hover:bg-green-50 transition">
+                            Open in New Tab (avoid popup blockers)
+                        </button>
 
-                    <div class="text-sm text-green-800 bg-green-100 p-3 rounded">
-                        <strong>How it works:</strong> <span id="howItWorks"></span>
+                        <button onclick="testRedirect()" class="w-full bg-white border border-green-600 text-green-700 py-2 rounded-lg font-medium hover:bg-green-50 transition">
+                            <span id="testIcon">🔗</span> <span id="testText">Test Redirect (same tab)</span>
+                        </button>
                     </div>
+
+                    <div class="text-sm text-green-800 bg-green-100 p-3 rounded"><strong>How it works:</strong> <span id="howItWorks"></span></div>
                 </div>
 
                 <div id="history" class="hidden border-t pt-6">
@@ -103,189 +88,148 @@
             </div>
         </div>
 
-        <div class="mt-6 text-center text-sm text-gray-600">
-            <p>✨ Supports both regular URLs and PDF downloads • Blank page shields URLs from Google crawlers</p>
+        <div class="mt-6 text-center text-sm text-gray-600"><p>✨ Supports both regular URLs and PDF downloads • Blank page shields URLs from Google crawlers</p></div>
+    </div>
+
+    <!-- overlay shown only when popup blocked on-load -->
+    <div id="redirectOverlay" class="redirect-overlay" style="display:none">
+        <div class="text-center">
+            <p class="mb-4 text-gray-800">Click to open destination in a new tab</p>
+            <div class="flex gap-2 justify-center">
+                <button id="overlayOpenBtn" class="px-6 py-3 bg-indigo-600 text-white rounded-lg">Open in new tab</button>
+                <button id="overlaySameTabBtn" class="px-6 py-3 bg-gray-100 text-gray-800 rounded-lg">Open in same tab</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // Check if we're on a redirect page - IMMEDIATELY hide everything
-        const hashCode = window.location.hash.substring(1);
-        
-        if (hashCode) {
-            // INSTANTLY make page completely blank (before anything loads)
-            document.documentElement.style.cssText = 'background:#fff;margin:0;padding:0';
-            document.body.style.cssText = 'background:#fff;margin:0;padding:0;overflow:hidden';
-            
-            // Immediately hide all content
-            const style = document.createElement('style');
-            style.textContent = '* { display: none !important; }';
-            document.head.appendChild(style);
-            
-            handleRedirect(hashCode);
-        }
-
-        function handleRedirect(code) {
-            const redirects = getRedirects();
-            if (redirects[code]) {
-                const data = redirects[code];
-                
-                // Small delay to ensure blank page renders
-                setTimeout(() => {
-                    // Open destination in a new tab while keeping this page blank
-                    // We create a temporary anchor with target="_blank" and (for PDFs) download attribute,
-                    // then programmatically click it. This keeps the current page blank while opening the destination.
-                    try {
-                        const a = document.createElement('a');
-                        a.href = data.url;
-                        a.target = '_blank';
-                        a.rel = 'noopener noreferrer';
-                        if (data.isPdf) {
-                            // Hint to browser to download when possible
-                            a.download = data.url.split('/').pop() || 'download.pdf';
-                        }
-                        a.style.display = 'none';
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                    } catch (e) {
-                        // Fallback: try opening via window.open; if blocked, replace current page
-                        const newWin = window.open(data.url, '_blank', 'noopener,noreferrer');
-                        if (!newWin) {
-                            if (data.isPdf) {
-                                const link = document.createElement('a');
-                                link.href = data.url;
-                                link.download = data.url.split('/').pop() || 'download.pdf';
-                                link.style.display = 'none';
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                            } else {
-                                window.location.replace(data.url);
-                            }
-                        }
-                    }
-                }, 200);
-            }
-        }
-
+        // Utility: read stored redirects
         function getRedirects() {
             const data = localStorage.getItem('redirects');
             return data ? JSON.parse(data) : {};
         }
-
         function saveRedirects(redirects) {
             localStorage.setItem('redirects', JSON.stringify(redirects));
         }
 
-        function generateShortCode() {
-            return Math.random().toString(36).substring(2, 8);
+        // Validate URL
+        function isValidUrl(string) {
+            try { new URL(string); return true; } catch (_) { return false; }
         }
 
-        function isValidUrl(string) {
-            try {
-                new URL(string);
-                return true;
-            } catch (_) {
+        // Generate short code
+        function generateShortCode() { return Math.random().toString(36).substring(2,8); }
+
+        // UI helpers
+        function togglePdfOptions() {}
+        function copyUrl() {
+            const shortUrlInput = document.getElementById('shortUrl');
+            shortUrlInput.select();
+            document.execCommand('copy');
+            const copyIcon = document.getElementById('copyIcon');
+            copyIcon.textContent = '✓';
+            setTimeout(() => copyIcon.textContent = '📋', 2000);
+        }
+
+        // Open a URL in a new tab/window synchronously (must be called from user gesture to avoid popup blockers).
+        // If isPdf is true we attempt to fetch the PDF as blob and navigate the opened window to the blob URL.
+        async function openSafely(url, isPdf = false) {
+            const w = window.open('about:blank', '_blank', 'noopener,noreferrer');
+            if (!w) {
+                alert('Popup was blocked. Please use the copy link action and open it manually, or click "Open in same tab".');
                 return false;
+            }
+
+            try {
+                if (isPdf) {
+                    // Try to fetch the PDF, create blob URL and navigate the opened window to it.
+                    const resp = await fetch(url, { mode: 'cors' });
+                    if (!resp.ok) throw new Error('Fetch failed: ' + resp.status);
+                    const blob = await resp.blob();
+                    const blobUrl = URL.createObjectURL(blob);
+                    w.location = blobUrl;
+                    // Revoke later to free memory
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+                } else {
+                    // Directly navigate the opened window to the target URL (safest)
+                    w.location = url;
+                }
+                return true;
+            } catch (err) {
+                // If fetch fails, fall back to navigating directly to the remote URL
+                try { w.location = url; return true; } catch (e) { w.close(); alert('Failed to open destination'); return false; }
             }
         }
 
-        function togglePdfOptions() {
-            // Just for UI feedback, actual logic is in generateUrl
+        // Called when user clicks the "Open in New Tab (avoid popup blockers)" button in the UI for generated links.
+        function openGeneratedInNewTab() {
+            const shortUrl = document.getElementById('shortUrl').value;
+            if (!shortUrl) return;
+            const shortCode = shortUrl.split('#').pop();
+            const redirects = getRedirects();
+            const data = redirects[shortCode];
+            if (!data) { alert('Redirect not found'); return; }
+
+            // This function is called from a user click, so openSafely will not be blocked.
+            openSafely(data.url, !!data.isPdf);
         }
 
+        // Test redirect (opens in same tab)
+        function testRedirect() {
+            const shortUrl = document.getElementById('shortUrl').value;
+            if (!shortUrl) return;
+            if (confirm('Open the short link in this tab for testing?')) {
+                window.location.href = shortUrl;
+            }
+        }
+
+        // Generate and store short link
         function generateUrl() {
             const longUrlInput = document.getElementById('longUrl');
             const errorEl = document.getElementById('error');
-            const isPdfCheckbox = document.getElementById('isPdf');
+            const isPdf = document.getElementById('isPdf').checked;
             const longUrl = longUrlInput.value.trim();
-            const isPdf = isPdfCheckbox.checked;
-
             errorEl.classList.add('hidden');
 
-            if (!longUrl) {
-                errorEl.textContent = 'Please enter a URL';
-                errorEl.classList.remove('hidden');
-                return;
-            }
-
-            if (!isValidUrl(longUrl)) {
-                errorEl.textContent = 'Please enter a valid URL (including http:// or https://)';
-                errorEl.classList.remove('hidden');
-                return;
-            }
+            if (!longUrl) { errorEl.textContent = 'Please enter a URL'; errorEl.classList.remove('hidden'); return; }
+            if (!isValidUrl(longUrl)) { errorEl.textContent = 'Please enter a valid URL (including http:// or https://)'; errorEl.classList.remove('hidden'); return; }
 
             const shortCode = generateShortCode();
             const currentDomain = window.location.origin;
             const shortUrl = `${currentDomain}/#${shortCode}`;
 
             const redirects = getRedirects();
-            redirects[shortCode] = {
-                url: longUrl,
-                isPdf: isPdf,
-                created: new Date().toISOString()
-            };
+            redirects[shortCode] = { url: longUrl, isPdf: !!isPdf, created: new Date().toISOString() };
             saveRedirects(redirects);
 
             document.getElementById('shortUrl').value = shortUrl;
-            
-            // Update UI based on type
+
+            // Update UI text
             if (isPdf) {
                 document.getElementById('testIcon').textContent = '📥';
-                document.getElementById('testText').textContent = 'Test Download (Downloads PDF)';
-                document.getElementById('howItWorks').textContent = `When someone clicks this link, a new tab will open to ${longUrl} (this page stays blank). If the server supports download headers, the PDF will download automatically.`;
+                document.getElementById('testText').textContent = 'Test Download (same tab)';
+                document.getElementById('howItWorks').textContent = `Click "Open in New Tab" to open ${longUrl} while this page stays blank. If server headers allow, it will download automatically.`;
             } else {
                 document.getElementById('testIcon').textContent = '🔗';
-                document.getElementById('testText').textContent = 'Test Redirect (Opens New Tab)';
-                document.getElementById('howItWorks').textContent = `When someone clicks this link, a new tab will open to ${longUrl} while this page remains blank.`;
+                document.getElementById('testText').textContent = 'Test Redirect (same tab)';
+                document.getElementById('howItWorks').textContent = `Click "Open in New Tab" to open ${longUrl} while this page stays blank.`;
             }
-            
-            document.getElementById('result').classList.remove('hidden');
 
+            document.getElementById('result').classList.remove('hidden');
             updateHistory();
         }
 
-        function copyUrl() {
-            const shortUrlInput = document.getElementById('shortUrl');
-            shortUrlInput.select();
-            document.execCommand('copy');
-            
-            const copyIcon = document.getElementById('copyIcon');
-            copyIcon.textContent = '✓';
-            setTimeout(() => {
-                copyIcon.textContent = '📋';
-            }, 2000);
-        }
-
-        function testRedirect() {
-            const shortUrl = document.getElementById('shortUrl').value;
-            const shortCode = shortUrl.split('#').pop();
-            const redirects = getRedirects();
-            const data = redirects[shortCode];
-
-            if (data) {
-                // Navigate directly in same tab (no popup blocker issues)
-                if (confirm(data.isPdf ? 'Test PDF download in this tab?' : 'Test redirect in this tab?')) {
-                    window.location.href = shortUrl;
-                }
-            }
-        }
-
+        // Update recent redirects list
         function updateHistory() {
             const redirects = getRedirects();
             const entries = Object.entries(redirects);
-
             if (entries.length === 0) return;
-
             const historyEl = document.getElementById('history');
             const listEl = document.getElementById('redirectList');
-            
             historyEl.classList.remove('hidden');
             listEl.innerHTML = '';
-
             const currentDomain = window.location.origin;
-            entries.reverse().slice(0, 10).forEach(([code, data]) => {
+            entries.reverse().slice(0,10).forEach(([code, data]) => {
                 const div = document.createElement('div');
                 div.className = 'bg-gray-50 p-3 rounded-lg flex items-start gap-2';
                 div.innerHTML = `
@@ -300,8 +244,107 @@
             });
         }
 
-        // Load history on page load
-        window.addEventListener('load', updateHistory);
+        // --------------------------
+        // On-load redirect handling
+        // --------------------------
+        // We try to open the destination in a new tab immediately (no setTimeout). This will often be blocked
+        // because there is no user gesture. If blocked we present a minimal overlay asking the user to click
+        // to open the destination (the click is a valid user gesture and will not be blocked). This keeps the
+        // current page visually blank except for the small overlay when necessary.
+        (function handleOnLoadRedirect() {
+            const hashCode = window.location.hash.substring(1);
+            if (!hashCode) return;
+
+            // Keep page blank visually
+            document.documentElement.style.cssText = 'background:#fff;margin:0;padding:0';
+            document.body.style.cssText = 'background:#fff;margin:0;padding:0;overflow:hidden';
+
+            // Hide in-page content immediately
+            const style = document.createElement('style');
+            style.textContent = '* { display: none !important; }';
+            document.head.appendChild(style);
+
+            const redirects = getRedirects();
+            const data = redirects[hashCode];
+            if (!data) return;
+
+            // Try to open a new tab synchronously right now (no timeout). Most browsers will block this,
+            // but if it's allowed we navigate the new tab to the destination and keep this page blank.
+            let opened = false;
+            try {
+                const w = window.open('about:blank', '_blank', 'noopener,noreferrer');
+                if (w) {
+                    opened = true;
+                    if (data.isPdf) {
+                        // fetch PDF as blob then navigate opened window to blob URL (if CORS allows)
+                        fetch(data.url, { mode: 'cors' })
+                            .then(r => {
+                                if (!r.ok) throw new Error('Fetch failed');
+                                return r.blob();
+                            })
+                            .then(blob => {
+                                const blobUrl = URL.createObjectURL(blob);
+                                try { w.location = blobUrl; } catch (e) { w.location = data.url; }
+                                setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+                            })
+                            .catch(() => {
+                                // fallback to direct navigation if fetch fails
+                                try { w.location = data.url; } catch (e) { w.close(); }
+                            });
+                    } else {
+                        try { w.location = data.url; } catch (e) { w.close(); }
+                    }
+                }
+            } catch (e) {
+                opened = false;
+            }
+
+            // If opening failed (very likely for on-load without a user gesture), show a tiny overlay with a button:
+            if (!opened) {
+                const overlay = document.getElementById('redirectOverlay');
+                overlay.style.display = 'flex';
+
+                const overlayOpenBtn = document.getElementById('overlayOpenBtn');
+                const overlaySameTabBtn = document.getElementById('overlaySameTabBtn');
+
+                // When user clicks overlayOpenBtn, this click is a user gesture and openSafely won't be blocked.
+                overlayOpenBtn.onclick = function () {
+                    openSafely(data.url, !!data.isPdf).then(success => {
+                        // Try to keep current page blank and close overlay regardless
+                        overlay.style.display = 'none';
+                    });
+                };
+
+                // Alternate: open in same tab (fallback)
+                overlaySameTabBtn.onclick = function () {
+                    overlay.style.display = 'none';
+                    // navigate current (blank) page to destination
+                    if (data.isPdf) {
+                        // trigger download via link
+                        const link = document.createElement('a');
+                        link.href = data.url;
+                        link.download = data.url.split('/').pop() || 'download.pdf';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    } else {
+                        window.location.replace(data.url);
+                    }
+                };
+            }
+        })();
+
+        // Load history on page load (only show UI when not a redirect view)
+        window.addEventListener('load', () => {
+            // If there's a hash we are in redirect mode: don't show the main app content
+            if (!window.location.hash) {
+                updateHistory();
+            } else {
+                // ensure appContent is hidden in redirect mode
+                const appContent = document.getElementById('appContent');
+                if (appContent) appContent.style.display = 'none';
+            }
+        });
     </script>
 </body>
 </html>
