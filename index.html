@@ -1,14 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>URL Redirect Tool - abc.com</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-        }
+        body { font-family: system-ui, -apple-system, sans-serif; }
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
@@ -112,44 +110,14 @@
         // Check if we're on a redirect page
         const path = window.location.pathname;
         const hashCode = window.location.hash.substring(1);
-        
+
         if (path !== '/' && path !== '/index.html' && path !== '') {
             handleRedirect(path.substring(1));
         } else if (hashCode) {
             handleRedirect(hashCode);
         }
 
-        function handleRedirect(code) {
-            const redirects = getRedirects();
-            if (redirects[code]) {
-                const data = redirects[code];
-                
-                // Show blank page immediately (no content visible to crawlers)
-                document.body.style.background = '#f3f4f6';
-                document.body.innerHTML = '';
-                
-                // Handle redirect or download immediately (no delay for better UX)
-                if (data.isPdf) {
-                    // Force download PDF without popup
-                    const link = document.createElement('a');
-                    link.href = data.url;
-                    link.download = data.url.split('/').pop() || 'download.pdf';
-                    link.style.display = 'none';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    
-                    // Show subtle confirmation
-                    setTimeout(() => {
-                        document.body.innerHTML = '<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;font-size:18px;color:#059669;text-align:center;padding:20px;font-family:system-ui;"><div style="font-size:42px;margin-bottom:15px;">✓</div><div style="font-weight:600;margin-bottom:8px;">Download Started</div><div style="font-size:14px;color:#6b7280;">You can close this tab</div></div>';
-                    }, 100);
-                } else {
-                    // Direct redirect (same tab, no popup)
-                    window.location.replace(data.url);
-                }
-            }
-        }
-
+        // Utilities
         function getRedirects() {
             const data = localStorage.getItem('redirects');
             return data ? JSON.parse(data) : {};
@@ -174,6 +142,161 @@
 
         function togglePdfOptions() {
             // Just for UI feedback, actual logic is in generateUrl
+        }
+
+        // Primary change: attempt to open a script-controlled tab/window to perform
+        // the redirect or download and then auto-close the new tab.
+        //
+        // Notes on browser behavior and limitations (handled in code & UI messaging):
+        // - Browsers only allow window.close() for windows that were opened by script.
+        // - We open a short-lived "helper" window using window.open('','_blank'),
+        //   write a small page into it that performs the navigation or triggers the download,
+        //   and then that helper page closes itself after a short delay.
+        // - If popup blockers prevent opening the helper window, we fall back to a direct redirect
+        //   or download in the same tab (no automatic close possible in that case).
+        //
+        // This gives the best chance to (a) perform the redirect/download and (b) close the tab
+        // automatically, while still gracefully falling back.
+
+        function handleRedirect(code) {
+            const redirects = getRedirects();
+            if (!redirects[code]) return;
+            const data = redirects[code];
+
+            // Make the current page empty/blank for crawler-friendliness
+            document.body.style.background = '#f3f4f6';
+            document.body.innerHTML = '';
+
+            // Helper to safely embed the URL into the small helper page by JSON encoding it
+            const quotedUrl = JSON.stringify(data.url);
+
+            if (data.isPdf) {
+                // Try to open a script-controlled helper window that triggers the download,
+                // then closes itself.
+                const helper = window.open('', '_blank');
+
+                if (helper) {
+                    const helperHtml = `
+                        <!doctype html>
+                        <html>
+                        <head>
+                            <meta charset="utf-8">
+                            <title>Starting download...</title>
+                            <meta name="viewport" content="width=device-width,initial-scale=1"/>
+                        </head>
+                        <body style="display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:system-ui;">
+                            <div style="text-align:center;color:#065f46;">
+                                <div style="font-size:42px;margin-bottom:8px;">📥</div>
+                                <div style="font-weight:600;margin-bottom:6px;">Starting download…</div>
+                                <div style="font-size:13px;color:#6b7280;">If the download doesn't start, close this tab and try the original link.</div>
+                            </div>
+                            <script>
+                                (function(){
+                                    try {
+                                        var url = ${quotedUrl};
+                                        var a = document.createElement('a');
+                                        a.href = url;
+                                        // Suggest a filename using the last path segment
+                                        try {
+                                            var pathParts = (new URL(url)).pathname.split('/');
+                                            a.download = pathParts[pathParts.length-1] || 'download.pdf';
+                                        } catch(e) {
+                                            a.download = 'download.pdf';
+                                        }
+                                        a.style.display = 'none';
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        // Close helper after a short delay to allow the browser to begin downloading
+                                        setTimeout(function(){ window.close(); }, 3000);
+                                    } catch(e) {
+                                        // If something goes wrong, show a fallback link
+                                        document.body.innerHTML = '<div style="padding:20px;font-family:system-ui;">Failed to start automatic download. <a href="' + ${quotedUrl} + '" target="_blank" rel="noreferrer">Click here to download</a></div>';
+                                    }
+                                })();
+                            </script>
+                        </body>
+                        </html>
+                    `;
+                    helper.document.write(helperHtml);
+                    helper.document.close();
+
+                    // In case the helper cannot close itself (very rare), the opener will try to close it after a bit.
+                    setTimeout(() => {
+                        try { if (!helper.closed) helper.close(); } catch (e) {}
+                    }, 6000);
+
+                    // Show subtle confirmation in the original tab and attempt to close original tab if it was opened by script.
+                    document.body.innerHTML = '<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;font-size:18px;color:#059669;text-align:center;padding:20px;font-family:system-ui;"><div style="font-size:42px;margin-bottom:15px;">✓</div><div style="font-weight:600;margin-bottom:8px;">Download Initiated</div><div style="font-size:14px;color:#6b7280;">This tab will close automatically if allowed by your browser.</div></div>';
+                    setTimeout(() => {
+                        try { window.close(); } catch(e) {}
+                    }, 3500);
+                } else {
+                    // Popup blocked: fallback to same-tab download (no auto-close possible)
+                    const link = document.createElement('a');
+                    link.href = data.url;
+                    link.download = data.url.split('/').pop() || 'download.pdf';
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    document.body.innerHTML = '<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;font-size:18px;color:#059669;text-align:center;padding:20px;font-family:system-ui;"><div style="font-size:42px;margin-bottom:15px;">✓</div><div style="font-weight:600;margin-bottom:8px;">Download Started</div><div style="font-size:14px;color:#6b7280;">Popup blocked — this tab cannot be closed automatically. You can close it manually.</div></div>';
+                }
+            } else {
+                // Non-PDF redirect: try to open a helper window that navigates to the destination,
+                // then close the helper automatically after a brief delay.
+                const helper = window.open('', '_blank');
+                if (helper) {
+                    // Helper page will immediately navigate to the destination and then attempt to close
+                    const helperHtml = `
+                        <!doctype html>
+                        <html>
+                        <head>
+                            <meta charset="utf-8">
+                            <meta name="viewport" content="width=device-width,initial-scale=1"/>
+                            <title>Redirecting…</title>
+                        </head>
+                        <body style="display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:system-ui;">
+                            <div style="text-align:center;color:#0f172a;">
+                                <div style="font-size:42px;margin-bottom:8px;">🔗</div>
+                                <div style="font-weight:600;margin-bottom:6px;">Redirecting…</div>
+                                <div style="font-size:13px;color:#6b7280;">If you are not taken, <a id='fallback' href='#'>click here</a>.</div>
+                            </div>
+                            <script>
+                                (function(){
+                                    try {
+                                        var url = ${quotedUrl};
+                                        // Navigate to the url immediately
+                                        location.replace(url);
+                                        // Try to close the helper after a little while (the opener may also close it)
+                                        setTimeout(function(){ try{ window.close(); } catch(e){} }, 5000);
+                                    } catch(e) {
+                                        var el = document.getElementById('fallback');
+                                        if (el) el.href = url;
+                                    }
+                                })();
+                            </script>
+                        </body>
+                        </html>
+                    `;
+                    helper.document.write(helperHtml);
+                    helper.document.close();
+
+                    // Opener fallback: ensure helper is closed after a bit in case it couldn't close itself
+                    setTimeout(() => {
+                        try { if (!helper.closed) helper.close(); } catch (e) {}
+                    }, 7000);
+
+                    // Show minimal message and attempt to close the original tab if it was opened by script
+                    document.body.innerHTML = '<div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;font-size:18px;color:#0f5132;text-align:center;padding:20px;font-family:system-ui;"><div style="font-size:42px;margin-bottom:15px;">↪️</div><div style="font-weight:600;margin-bottom:8px;">Opening destination in a new tab…</div><div style="font-size:14px;color:#6b7280;">This tab will close automatically if allowed by your browser.</div></div>';
+                    setTimeout(() => {
+                        try { window.close(); } catch(e) {}
+                    }, 3500);
+                } else {
+                    // Popup blocked: fallback to direct replace in same tab (no auto-close)
+                    window.location.replace(data.url);
+                }
+            }
         }
 
         function generateUrl() {
@@ -210,18 +333,18 @@
             saveRedirects(redirects);
 
             document.getElementById('shortUrl').value = shortUrl;
-            
+
             // Update UI based on type
             if (isPdf) {
                 document.getElementById('testIcon').textContent = '📥';
-                document.getElementById('testText').textContent = 'Test Download (Downloads PDF)';
-                document.getElementById('howItWorks').textContent = `When someone clicks this link, they'll see a blank page briefly, then the PDF will automatically download from ${longUrl}. The actual PDF URL is hidden from Google!`;
+                document.getElementById('testText').textContent = 'Test Download (Opens Helper Tab)';
+                document.getElementById('howItWorks').textContent = `When someone clicks this link, a helper tab will open and trigger the PDF download. The helper attempts to close itself automatically; if popups are blocked, the download happens in the same tab (no auto-close).`;
             } else {
                 document.getElementById('testIcon').textContent = '🔗';
-                document.getElementById('testText').textContent = 'Test Redirect (Opens Blank Tab First)';
-                document.getElementById('howItWorks').textContent = `When someone clicks this link, they'll see a blank page briefly before being redirected to ${longUrl}`;
+                document.getElementById('testText').textContent = 'Test Redirect (Opens Helper Tab)';
+                document.getElementById('howItWorks').textContent = `When someone clicks this link, a helper tab will open and navigate to ${longUrl}. The helper attempts to close itself automatically; if popups are blocked, the redirect happens in the same tab (no auto-close).`;
             }
-            
+
             document.getElementById('result').classList.remove('hidden');
 
             updateHistory();
@@ -231,7 +354,7 @@
             const shortUrlInput = document.getElementById('shortUrl');
             shortUrlInput.select();
             document.execCommand('copy');
-            
+
             const copyIcon = document.getElementById('copyIcon');
             copyIcon.textContent = '✓';
             setTimeout(() => {
@@ -241,23 +364,19 @@
 
         function testRedirect() {
             const shortUrl = document.getElementById('shortUrl').value;
-            const shortCode = shortUrl.split('/').pop();
-            const redirects = getRedirects();
-            const data = redirects[shortCode];
-
-            if (data) {
-                if (data.isPdf) {
-                    // Open in new tab for PDF download
-                    window.open(shortUrl, '_blank');
-                } else {
-                    // Regular redirect test
-                    const blankWindow = window.open('about:blank', '_blank');
-                    setTimeout(() => {
-                        if (blankWindow) {
-                            blankWindow.location.href = data.url;
-                        }
-                    }, 100);
-                }
+            if (!shortUrl) return;
+            // Open the short URL in a new tab (so the short URL's script can open helper windows and auto-close).
+            // Also keep a reference and try to close it from the opener as a fallback (some browsers may allow it).
+            const win = window.open(shortUrl, '_blank');
+            if (win) {
+                // Attempt to close the opened tab after a few seconds as a fallback (the short URL's script
+                // will usually close helper windows itself).
+                setTimeout(() => {
+                    try { if (!win.closed) win.close(); } catch (e) {}
+                }, 8000);
+            } else {
+                // Popup blocked — instruct user to click the short URL manually
+                alert('Popup blocked. Please click the short URL manually: ' + shortUrl);
             }
         }
 
@@ -269,7 +388,7 @@
 
             const historyEl = document.getElementById('history');
             const listEl = document.getElementById('redirectList');
-            
+
             historyEl.classList.remove('hidden');
             listEl.innerHTML = '';
 
