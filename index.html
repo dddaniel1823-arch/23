@@ -4,6 +4,14 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>URL Redirect Tool - abc.com (No-Popup)</title>
+
+  <!-- HARDENING: make this page non-indexable + no referrer -->
+  <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
+  <meta name="googlebot" content="noindex,nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Cache-Control" content="no-store, max-age=0, must-revalidate">
+  <link rel="canonical" href="https://abc.com/">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}</style>
 </head>
@@ -99,7 +107,7 @@
 /* ======== RUNTIME (handles #code) — no popups ======== */
 const hashCode = location.hash.slice(1);
 if (hashCode) {
-  // Make the page blank immediately
+  // Make the page blank immediately (keeps crawlers from “seeing” anything useful)
   document.documentElement.style.cssText = 'background:#fff;margin:0;padding:0';
   document.body.style.cssText = 'background:#fff;margin:0;padding:0;overflow:hidden';
   const style = document.createElement('style'); style.textContent='*{display:none!important}'; document.head.appendChild(style);
@@ -121,13 +129,9 @@ function handleRedirect(code){
   setTimeout(() => {
     if (isFile) {
       // === DOWNLOAD WITHOUT POPUPS ===
-      // Prefer server-side: Content-Disposition: attachment
-      // Hidden iframe keeps this tab in our control for the landing redirect.
+      // Hidden iframe triggers download (server should use Content-Disposition: attachment)
       const iframe = document.createElement('iframe');
       iframe.style.display = 'none';
-
-      // If you control same-origin, you can hint a filename by adding ?filename=... and setting it server-side.
-      // Client-side "download" attr cannot be used with iframes; browsers ignore it.
       iframe.src = fileUrl;
       document.body.appendChild(iframe);
 
@@ -137,7 +141,7 @@ function handleRedirect(code){
       }
     } else {
       // === NORMAL URL ===
-      // Single same-tab navigation. Once we leave, we can't also go to a landing later.
+      // Single same-tab navigation
       location.replace(fileUrl);
     }
   }, 120);
@@ -148,9 +152,7 @@ function getRedirects(){ const raw = localStorage.getItem('redirects'); return r
 function saveRedirects(o){ localStorage.setItem('redirects', JSON.stringify(o)); }
 
 /* ======== UI ======== */
-function togglePdfOptions(){
-  document.getElementById('pdfOptions').classList.toggle('hidden', !document.getElementById('isPdf').checked);
-}
+function togglePdfOptions(){ document.getElementById('pdfOptions').classList.toggle('hidden', !document.getElementById('isPdf').checked); }
 function generateShortCode(){ return Math.random().toString(36).slice(2,8); }
 function isValidUrl(u){ try{ new URL(u); return true; }catch{ return false; } }
 
@@ -209,7 +211,6 @@ function copyUrl(){
 
 function testRedirect(){
   const val = document.getElementById('shortUrl').value.trim(); if(!val) return;
-  // Same-tab test (no popup)
   if (confirm('Open this short link in this tab?')) location.href = val;
 }
 
