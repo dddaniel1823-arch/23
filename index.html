@@ -1,316 +1,246 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>URL Redirect Tool - abc.com</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-    </style>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>URL Redirect Tool - abc.com (No-Popup)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}</style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
 <div class="max-w-2xl mx-auto">
-    <div class="bg-white rounded-2xl shadow-xl p-8">
-        <div class="flex items-center gap-3 mb-8">
-            <div class="bg-indigo-600 p-3 rounded-lg">
-                <svg class="text-white" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                </svg>
-            </div>
-            <div>
-                <h1 class="text-3xl font-bold text-gray-900">URL Redirect Tool</h1>
-                <p class="text-gray-600">Create short abc.com links with blank tab redirect</p>
-            </div>
+  <div class="bg-white rounded-2xl shadow-xl p-8">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="bg-indigo-600 p-3 rounded-lg">
+        <svg class="text-white" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">URL Redirect Tool</h1>
+        <p class="text-gray-600">Short links that download or redirect — no popups</p>
+      </div>
+    </div>
+
+    <div class="space-y-6">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Enter URL or File Link</label>
+        <input id="longUrl" type="text" placeholder="https://example.com/page OR https://files.example.com/report.pdf"
+               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"/>
+        <p id="error" class="mt-2 text-sm text-red-600 hidden"></p>
+      </div>
+
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="flex items-start gap-2">
+          <input type="checkbox" id="isPdf" class="mt-1" onchange="togglePdfOptions()">
+          <div class="flex-1">
+            <label for="isPdf" class="font-medium text-blue-900 cursor-pointer">This is a file/PDF (start download, then forward)</label>
+            <p class="text-sm text-blue-700 mt-1">No popups: we trigger the download in a hidden iframe, then move this tab to your landing.</p>
+          </div>
         </div>
+        <div id="pdfOptions" class="mt-4 hidden grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-blue-900 mb-1">Suggested filename (optional)</label>
+            <input id="filename" type="text" placeholder="invoice.pdf"
+                   class="w-full px-3 py-2 border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-400">
+          </div>
+        </div>
+      </div>
 
-        <div class="space-y-6">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Enter URL or File Link</label>
-                <input id="longUrl" type="text"
-                       placeholder="https://example.com/page or https://files.example.com/path/report.pdf"
-                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"/>
-                <p id="error" class="mt-2 text-sm text-red-600 hidden"></p>
-            </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Landing page (optional)</label>
+        <input id="landingUrl" type="text" placeholder="https://www.facebook.com (optional)"
+               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"/>
+        <p class="text-xs text-gray-500 mt-1">Used only after file/PDF downloads (same tab). Normal URLs do a single same-tab redirect.</p>
+      </div>
 
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div class="flex items-start gap-2">
-                    <input type="checkbox" id="isPdf" class="mt-1" onchange="togglePdfOptions()">
-                    <div class="flex-1">
-                        <label for="isPdf" class="font-medium text-blue-900 cursor-pointer">This is a PDF/file (force download + forward)</label>
-                        <p class="text-sm text-blue-700 mt-1">
-                            When checked, we will start the download (using <code>download</code> hint) and then forward to your landing page.
-                        </p>
-                    </div>
-                </div>
+      <button onclick="generateUrl()"
+              class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md hover:shadow-lg">
+        Generate Short URL
+      </button>
 
-                <!-- PDF/file-only options -->
-                <div id="pdfOptions" class="mt-4 hidden grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-blue-900 mb-1">Suggested filename (optional)</label>
-                        <input id="filename" type="text" placeholder="invoice.pdf"
-                               class="w-full px-3 py-2 border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-400">
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Landing page (optional)</label>
-                <input id="landingUrl" type="text" placeholder="https://www.facebook.com (optional)"
-                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"/>
-                <p class="text-xs text-gray-500 mt-1">If set, we’ll navigate this blank page to your landing after opening the URL / starting the download.</p>
-            </div>
-
-            <button onclick="generateUrl()"
-                    class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-md hover:shadow-lg">
-                Generate Short URL
+      <div id="result" class="hidden bg-green-50 border border-green-200 rounded-lg p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-green-900 mb-2">Your Short URL</label>
+          <div class="flex gap-2">
+            <input id="shortUrl" type="text" readonly
+                   class="flex-1 px-4 py-3 bg-white border border-green-300 rounded-lg font-mono text-sm"/>
+            <button onclick="copyUrl()"
+                    class="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition" title="Copy to clipboard">
+              <span id="copyIcon">📋</span>
             </button>
-
-            <div id="result" class="hidden bg-green-50 border border-green-200 rounded-lg p-6 space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-green-900 mb-2">Your Short URL</label>
-                    <div class="flex gap-2">
-                        <input id="shortUrl" type="text" readonly
-                               class="flex-1 px-4 py-3 bg-white border border-green-300 rounded-lg font-mono text-sm"/>
-                        <button onclick="copyUrl()"
-                                class="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-                                title="Copy to clipboard">
-                            <span id="copyIcon">📋</span>
-                        </button>
-                    </div>
-                </div>
-
-                <button onclick="testRedirect()"
-                        class="w-full bg-white border border-green-600 text-green-700 py-2 rounded-lg font-medium hover:bg-green-50 transition">
-                    <span id="testIcon">🔗</span> <span id="testText">Test Redirect (Opens Blank Tab First)</span>
-                </button>
-
-                <div class="text-sm text-green-800 bg-green-100 p-3 rounded">
-                    <strong>How it works:</strong> <span id="howItWorks"></span>
-                </div>
-            </div>
-
-            <div id="history" class="hidden border-t pt-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Redirects</h3>
-                <div id="redirectList" class="space-y-2 max-h-60 overflow-y-auto"></div>
-            </div>
+          </div>
         </div>
-    </div>
 
-    <div class="mt-6 text-center text-sm text-gray-600">
-        <p>✨ Supports both regular URLs and file downloads • Blank page shields URLs from crawlers</p>
+        <button onclick="testRedirect()"
+                class="w-full bg-white border border-green-600 text-green-700 py-2 rounded-lg font-medium hover:bg-green-50 transition">
+          <span id="testIcon">🔗</span> <span id="testText">Test (No Popups)</span>
+        </button>
+
+        <div class="text-sm text-green-800 bg-green-100 p-3 rounded">
+          <strong>How it works:</strong> <span id="howItWorks"></span>
+        </div>
+      </div>
+
+      <div id="history" class="hidden border-t pt-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Redirects</h3>
+        <div id="redirectList" class="space-y-2 max-h-60 overflow-y-auto"></div>
+      </div>
     </div>
+  </div>
+
+  <div class="mt-6 text-center text-sm text-gray-600">
+    <p>✨ No popups. File downloads via hidden iframe; normal URLs use same-tab navigation.</p>
+  </div>
 </div>
 
 <script>
-/* ========= Redirect runtime (blank page) ========= */
-const hashCode = window.location.hash.substring(1);
+/* ======== RUNTIME (handles #code) — no popups ======== */
+const hashCode = location.hash.slice(1);
 if (hashCode) {
-    // make page blank instantly
-    document.documentElement.style.cssText = 'background:#fff;margin:0;padding:0';
-    document.body.style.cssText = 'background:#fff;margin:0;padding:0;overflow:hidden';
-    const style = document.createElement('style');
-    style.textContent = '* { display: none !important; }';
-    document.head.appendChild(style);
+  // Make the page blank immediately
+  document.documentElement.style.cssText = 'background:#fff;margin:0;padding:0';
+  document.body.style.cssText = 'background:#fff;margin:0;padding:0;overflow:hidden';
+  const style = document.createElement('style'); style.textContent='*{display:none!important}'; document.head.appendChild(style);
 
-    handleRedirect(hashCode);
+  handleRedirect(hashCode);
 }
 
-function handleRedirect(code) {
-    const map = getRedirects();
-    const data = map[code];
-    if (!data) return;
+function handleRedirect(code){
+  const map = getRedirects();
+  const data = map[code];
+  if(!data) return;
 
-    // values aligned with your pattern:
-    const fileUrl  = data.url;               // primary target (page or file)
-    const landing  = data.landing || "";     // optional landing page
-    const filename = (data.filename || "").trim(); // optional filename hint
+  const fileUrl  = data.url;                 // primary (file or page)
+  const landing  = (data.landing||"").trim();// optional landing
+  const filename = (data.filename||"").trim();
+  const isFile   = !!data.isPdf;
 
-    // small delay so the blank page paints
-    setTimeout(() => {
-        try {
-            if (data.isPdf) {
-                // Download-first flow (file/PDF), then forward to landing (if set)
-                // Prefer anchor approach; some browsers require user gesture—fallbacks included.
-                const a = document.createElement('a');
-                a.href = fileUrl;
-                a.target = '_blank'; // start in a new tab to keep this tab clean
-                a.rel = 'noopener noreferrer';
-                if (filename) a.setAttribute('download', filename);
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+  // Small paint delay
+  setTimeout(() => {
+    if (isFile) {
+      // === DOWNLOAD WITHOUT POPUPS ===
+      // Prefer server-side: Content-Disposition: attachment
+      // Hidden iframe keeps this tab in our control for the landing redirect.
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
 
-                if (landing) {
-                    setTimeout(() => { location.replace(landing); }, 900);
-                }
-            } else {
-                // Normal URL: open in new tab, then forward this blank tab to landing (if set)
-                const a = document.createElement('a');
-                a.href = fileUrl;
-                a.target = '_blank';
-                a.rel = 'noopener noreferrer';
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+      // If you control same-origin, you can hint a filename by adding ?filename=... and setting it server-side.
+      // Client-side "download" attr cannot be used with iframes; browsers ignore it.
+      iframe.src = fileUrl;
+      document.body.appendChild(iframe);
 
-                if (landing) {
-                    setTimeout(() => { location.replace(landing); }, 400);
-                }
-            }
-        } catch (e) {
-            // Fallbacks if pop-up blocked
-            const opened = window.open(fileUrl, '_blank', 'noopener,noreferrer');
-            if (!opened) {
-                // As a last resort, navigate in this tab
-                if (data.isPdf && filename) {
-                    const link = document.createElement('a');
-                    link.href = fileUrl;
-                    link.download = filename;
-                    document.body.appendChild(link);
-                    link.click();
-                    link.remove();
-                } else {
-                    location.replace(fileUrl);
-                    return;
-                }
-            }
-            if (landing) {
-                setTimeout(() => { location.replace(landing); }, data.isPdf ? 900 : 400);
-            }
-        }
-    }, 150);
-}
-
-/* ========= Storage helpers ========= */
-function getRedirects() {
-    const raw = localStorage.getItem('redirects');
-    return raw ? JSON.parse(raw) : {};
-}
-function saveRedirects(obj) {
-    localStorage.setItem('redirects', JSON.stringify(obj));
-}
-
-/* ========= UI logic ========= */
-function togglePdfOptions() {
-    const box = document.getElementById('isPdf');
-    document.getElementById('pdfOptions').classList.toggle('hidden', !box.checked);
-}
-
-function generateShortCode() {
-    return Math.random().toString(36).substring(2, 8);
-}
-
-function isValidUrl(u) {
-    try { new URL(u); return true; } catch { return false; }
-}
-
-function generateUrl() {
-    const longUrl = document.getElementById('longUrl').value.trim();
-    const isPdf   = document.getElementById('isPdf').checked;
-    const landing = document.getElementById('landingUrl').value.trim();
-    const filename = document.getElementById('filename').value.trim();
-    const errorEl = document.getElementById('error');
-
-    errorEl.classList.add('hidden');
-    if (!longUrl || !isValidUrl(longUrl)) {
-        errorEl.textContent = 'Please enter a valid URL (including http:// or https://)';
-        errorEl.classList.remove('hidden');
-        return;
-    }
-    if (landing && !isValidUrl(landing)) {
-        errorEl.textContent = 'Landing must be a valid URL (or leave it empty).';
-        errorEl.classList.remove('hidden');
-        return;
-    }
-
-    const code = generateShortCode();
-    const shortUrl = `${location.origin}/#${code}`;
-
-    const redirects = getRedirects();
-    redirects[code] = {
-        url: longUrl,      // fileUrl/pageUrl
-        isPdf,             // file mode or not
-        landing: landing || "",  // landing (optional)
-        filename: filename || "",// filename hint (optional)
-        created: new Date().toISOString()
-    };
-    saveRedirects(redirects);
-
-    // Populate result UI
-    document.getElementById('shortUrl').value = shortUrl;
-    const how = document.getElementById('howItWorks');
-    if (isPdf) {
-        document.getElementById('testIcon').textContent = '📥';
-        document.getElementById('testText').textContent = 'Test Download + Forward';
-        how.textContent = landing
-            ? `Opens the file in a new tab to start download, then forwards this blank tab to ${landing}.`
-            : `Opens the file in a new tab to start download.`;
+      // After giving the download time to start, move this tab to landing (if provided)
+      if (landing) {
+        setTimeout(() => { location.replace(landing); }, 1000);
+      }
     } else {
-        document.getElementById('testIcon').textContent = '🔗';
-        document.getElementById('testText').textContent = 'Test Redirect + (Optional) Forward';
-        how.textContent = landing
-            ? `Opens ${longUrl} in a new tab, then forwards this blank tab to ${landing}.`
-            : `Opens ${longUrl} in a new tab while this tab stays blank.`;
+      // === NORMAL URL ===
+      // Single same-tab navigation. Once we leave, we can't also go to a landing later.
+      location.replace(fileUrl);
     }
-    document.getElementById('result').classList.remove('hidden');
-    updateHistory();
+  }, 120);
 }
 
-function copyUrl() {
-    const input = document.getElementById('shortUrl');
-    input.select();
-    document.execCommand('copy');
-    const icon = document.getElementById('copyIcon');
-    icon.textContent = '✓';
-    setTimeout(() => icon.textContent = '📋', 1600);
+/* ======== STORAGE ======== */
+function getRedirects(){ const raw = localStorage.getItem('redirects'); return raw?JSON.parse(raw):{} }
+function saveRedirects(o){ localStorage.setItem('redirects', JSON.stringify(o)); }
+
+/* ======== UI ======== */
+function togglePdfOptions(){
+  document.getElementById('pdfOptions').classList.toggle('hidden', !document.getElementById('isPdf').checked);
+}
+function generateShortCode(){ return Math.random().toString(36).slice(2,8); }
+function isValidUrl(u){ try{ new URL(u); return true; }catch{ return false; } }
+
+function generateUrl(){
+  const longUrl = document.getElementById('longUrl').value.trim();
+  const isPdf   = document.getElementById('isPdf').checked;
+  const landing = document.getElementById('landingUrl').value.trim();
+  const filename= document.getElementById('filename').value.trim();
+  const errorEl = document.getElementById('error');
+
+  errorEl.classList.add('hidden');
+  if(!longUrl || !isValidUrl(longUrl)){
+    errorEl.textContent='Please enter a valid URL (including http:// or https://)';
+    errorEl.classList.remove('hidden'); return;
+  }
+  if(landing && !isValidUrl(landing)){
+    errorEl.textContent='Landing must be a valid URL (or leave empty).';
+    errorEl.classList.remove('hidden'); return;
+  }
+
+  const code = generateShortCode();
+  const shortUrl = `${location.origin}/#${code}`;
+  const redirects = getRedirects();
+  redirects[code] = {
+    url: longUrl,
+    isPdf: isPdf,
+    landing: landing || "",
+    filename: filename || "",
+    created: new Date().toISOString()
+  };
+  saveRedirects(redirects);
+
+  document.getElementById('shortUrl').value = shortUrl;
+  const how = document.getElementById('howItWorks');
+  if (isPdf){
+    document.getElementById('testIcon').textContent = '📥';
+    document.getElementById('testText').textContent = 'Test (Download → Landing, same tab)';
+    how.textContent = landing
+      ? `Starts the file download invisibly (hidden iframe), then moves this tab to ${landing}.`
+      : `Starts the file download invisibly (hidden iframe).`;
+  } else {
+    document.getElementById('testIcon').textContent = '🔗';
+    document.getElementById('testText').textContent = 'Test (Same-tab redirect)';
+    how.textContent = `Navigates this tab to ${longUrl}. (No secondary landing possible without popups.)`;
+  }
+  document.getElementById('result').classList.remove('hidden');
+  updateHistory();
 }
 
-function testRedirect() {
-    const val = document.getElementById('shortUrl').value.trim();
-    if (!val) return;
-    const code = val.split('#').pop();
-    const r = getRedirects()[code];
-    if (!r) return;
-    const msg = r.isPdf ? 'Test download + forward in this tab?' : 'Test redirect (and forward, if set) in this tab?';
-    if (confirm(msg)) location.href = val;
+function copyUrl(){
+  const input = document.getElementById('shortUrl');
+  input.select(); document.execCommand('copy');
+  const icon = document.getElementById('copyIcon'); icon.textContent='✓';
+  setTimeout(()=>icon.textContent='📋', 1600);
 }
 
-function updateHistory() {
-    const redirects = getRedirects();
-    const entries = Object.entries(redirects);
-    if (!entries.length) return;
-
-    const history = document.getElementById('history');
-    const list = document.getElementById('redirectList');
-    history.classList.remove('hidden');
-    list.innerHTML = '';
-
-    const origin = location.origin;
-    entries.reverse().slice(0, 10).forEach(([code, data]) => {
-        const div = document.createElement('div');
-        div.className = 'bg-gray-50 p-3 rounded-lg flex items-start gap-2';
-        div.innerHTML = `
-            <span class="text-lg">${data.isPdf ? '📄' : '🔗'}</span>
-            <div class="flex-1 min-w-0">
-                <p class="font-mono text-sm text-indigo-600 truncate">${origin}/#${code}</p>
-                <p class="text-xs text-gray-600 truncate">${data.url}</p>
-                ${data.landing ? `<p class="text-xs text-emerald-700 truncate">→ ${data.landing}</p>` : ''}
-                ${data.isPdf ? '<p class="text-xs text-green-600 font-medium mt-1">File Download</p>' : ''}
-            </div>
-        `;
-        list.appendChild(div);
-    });
+function testRedirect(){
+  const val = document.getElementById('shortUrl').value.trim(); if(!val) return;
+  // Same-tab test (no popup)
+  if (confirm('Open this short link in this tab?')) location.href = val;
 }
 
-// init
-window.addEventListener('load', () => {
-    updateHistory();
-    togglePdfOptions();
-});
+function updateHistory(){
+  const redirects = getRedirects();
+  const entries = Object.entries(redirects);
+  if(!entries.length) return;
+
+  const history = document.getElementById('history');
+  const list = document.getElementById('redirectList');
+  history.classList.remove('hidden');
+  list.innerHTML='';
+
+  const origin = location.origin;
+  entries.reverse().slice(0,10).forEach(([code,data])=>{
+    const div = document.createElement('div');
+    div.className='bg-gray-50 p-3 rounded-lg flex items-start gap-2';
+    div.innerHTML = `
+      <span class="text-lg">${data.isPdf?'📄':'🔗'}</span>
+      <div class="flex-1 min-w-0">
+        <p class="font-mono text-sm text-indigo-600 truncate">${origin}/#${code}</p>
+        <p class="text-xs text-gray-600 truncate">${data.url}</p>
+        ${data.landing ? `<p class="text-xs text-emerald-700 truncate">→ ${data.landing}</p>` : ''}
+        ${data.isPdf ? '<p class="text-xs text-green-600 font-medium mt-1">File Download (hidden iframe)</p>' : ''}
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+window.addEventListener('load', ()=>{ updateHistory(); togglePdfOptions(); });
 </script>
 </body>
 </html>
